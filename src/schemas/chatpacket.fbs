@@ -1,0 +1,88 @@
+// Example IDL file for our monster's schema.
+ 
+namespace NetPackets;
+
+/* 
+enum Color:byte { Red = 0, Green, Blue = 2 }
+union Equipment { Weapon } // Optionally add more tables.
+struct Vec3 {
+  x:float;
+  y:float;
+  z:float;
+}
+table Weapon {
+  name:string;
+  damage:short;
+}
+table Monster {
+  pos:Vec3; // Struct.
+  mana:short = 150;
+  hp:short = 100;
+  name:string;
+  friendly:bool = false (deprecated);
+  inventory:[ubyte];  // Vector of scalars.
+  color:Color = Blue; // Enum.
+  weapons:[Weapon];   // Vector of tables.
+  equipped:Equipment; // Union.
+  path:[Vec3];        // Vector of structs.
+}
+root_type Monster;
+*/
+
+// Base packet
+table STCPacket 
+{
+	type: uint16;
+	content: [ubyte];
+}
+
+// Generic error packet.
+table STCErrorPacket 
+{
+	error_type: uint16;
+	message: string;
+}
+
+/*
+Types id:
+---------------------------------------------
+CLIENT -> SERVER
+	0001	- SERVER_INFO_REQUEST			- Ask server for info.
+	0002	- JOIN_SERVER					- Join server giving basic information.
+	0003	- CLIENT_CHAT_MESSAGE			- Client send message to server.
+
+---------------------------------------------
+SERVER -> CLIENT 
+	1001	- SERVER_ANNOUNCE				- Return info about server.
+	1002	- SERVER_USER_ACCEPTED			- Accept connection from an user and give session key.
+	1003	- SERVER_CHAT_MESSAGE			- Server send message to all clients.
+
+*/
+// ------------------------------------------
+// CLIENT -> SERVER
+table ClientJoinServer // this should be encrypted with public server key
+{
+	nick: string;
+	pub_key: [ubyte];
+}
+
+table ClientChatMessage
+{
+	content: string;
+}
+
+// ------------------------------------------
+// SERVER -> CLIENT 
+table ServerAnnounce 
+{
+	name: string;
+	friendly_name: string;
+	pub_key: [ubyte];
+}
+
+table ServerChatMessage
+{
+	content: string;
+}
+
+root_type STCPacket;
