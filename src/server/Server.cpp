@@ -33,7 +33,7 @@ bool stc::Server::InitConnection()
     /* enet_address_set_host (& address, "x.x.x.x"); */
     address.host = ENET_HOST_ANY;
     /* Bind the server to port 1234. */
-    address.port = SERVER_PORT;
+    address.port = net::SERVER_DEFAULT_PORT;
     
     ServerHost = enet_host_create(&address /* the address to bind the server host to */,
         32      /* allow up to 32 clients and/or outgoing connections */,

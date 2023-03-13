@@ -36,7 +36,6 @@ namespace stc
     struct Server
     {
     public:
-        static constexpr int SERVER_PORT = 1234;
         static constexpr float SERVER_TICK = 0.1f;
 
     public:

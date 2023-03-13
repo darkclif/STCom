@@ -39,8 +39,7 @@ stc::Client::~Client()
 int stc::Client::Run()
 {
     // Connect to server
-    LocalUser = AddUser(User{ "You", 0 }); // And local user.
-    SetupNetworkClient();
+    LocalUser = AddUser(User{ "User", 0 }); // And local user.
 
     // Create interface
     std::function<bool(ftxui::Event)> OnMessageInput = std::bind(&stc::Client::OnMessageInput, this, std::placeholders::_1);
@@ -65,12 +64,15 @@ int stc::Client::Run()
     while (!ShutdownTimer.Done() && !MainLoop.HasQuitted())
     {
         // Process network.
-        ENetEvent Event;
         bool bHadEvent = false;
-        while (enet_host_service(ClientHost, &Event, 0) > 0)
+        if (bConnectedToServer)
         {
-            HandleEvent(Event);
-            bHadEvent = true;
+            ENetEvent Event;
+            while (enet_host_service(ClientHost, &Event, 0) > 0)
+            {
+                HandleEvent(Event);
+                bHadEvent = true;
+            }
         }
 
         // Render.
@@ -111,10 +113,20 @@ bool stc::Client::OnMessageInput(ftxui::Event Event)
                 Net_SendServerInfoRequest();
                 AddSystemMessage("Announce packet sent.");
             }
+            else if (Tokens[0] == "connect")
+            {
+                if (Tokens.size() < 2)
+                {
+                    AddSystemMessage("Pass IP address to connect.");
+                    return true;
+                }
+
+                AddSystemMessage(std::format("Connecting to {}...", Tokens[1]));
+                ConnectToServer(Tokens[1]);
+            }
             else if (Tokens[0] == "join")
             {
-                auto TmpKey = net::Key();
-                Net_SendServerJoin(LocalUser->Nick, TmpKey);
+                Net_SendServerJoin(LocalUser->Nick, PublicKey);
                 AddSystemMessage("Join packet sent.");
             }
             else if (Tokens[0] == "nick")
@@ -159,7 +171,7 @@ bool stc::Client::OnGlobalInput(ftxui::Event Event)
     return false;
 }
 
-void stc::Client::SetupNetworkClient()
+void stc::Client::ConnectToServer(const std::string& AddressStr)
 {
     // Create ENet host.
     ClientHost = enet_host_create(
@@ -176,15 +188,16 @@ void stc::Client::SetupNetworkClient()
     }
 
     // Connect to server.
-    ENetAddress Address;
+    ENetAddress NetAddress;
     ENetEvent Event;
 
-    /* Connect to some.server.net:1234. */
-    enet_address_set_host(&Address, "localhost");
-    Address.port = 1234;
+    /* Connect to given IP address. */
+    const uint16_t ServerPort = net::SERVER_DEFAULT_PORT;
+    enet_address_set_host(&NetAddress, AddressStr.c_str());
+    NetAddress.port = ServerPort;
     
     /* Initiate the connection, allocating the two channels 0 and 1. */
-    PeerConnection = enet_host_connect(ClientHost, &Address, 2, 0);
+    PeerConnection = enet_host_connect(ClientHost, &NetAddress, 2, 0);
     if (PeerConnection == NULL)
     {
         AddSystemMessage("No available peers for initiating an ENet connection.");
@@ -193,7 +206,11 @@ void stc::Client::SetupNetworkClient()
     /* Wait up to 5 seconds for the connection attempt to succeed. */
     if (enet_host_service(ClientHost, &Event, 500) > 0 && Event.type == ENET_EVENT_TYPE_CONNECT)
     {
-        AddSystemMessage("Connection to localhost:1234 succeeded.");
+        AddSystemMessage(std::format("Connection to {}:{} succeeded.", AddressStr, ServerPort));
+        bConnectedToServer = true;
+
+        // Join general channel
+        Net_SendServerJoin(LocalUser->Nick, PublicKey);
     }
     else
     {
@@ -202,7 +219,7 @@ void stc::Client::SetupNetworkClient()
         /* had run out without any significant event.            */
         enet_peer_reset(PeerConnection);
 
-        AddSystemMessage("Connection to localhost:1234 failed.");
+        AddSystemMessage(std::format("Connection to {}:{} failed.", AddressStr, ServerPort));
     }
 }
 
@@ -285,7 +302,7 @@ void stc::Client::OnEventReceive(const ENetEvent& Event)
     auto CallbackIt = PacketTypeCallbacks.find(PacketTypeID);
     if (CallbackIt == PacketTypeCallbacks.end())
     {
-        printf("Unknown packet type %d.\n", PacketTypeID);
+        AddSystemDebugMessage(std::format("Unknown packet type {}.\n", PacketTypeID));
         return;
     }
     else
@@ -342,7 +359,7 @@ void stc::Client::ChangeUserNick(const uint64_t& _UserUID, const std::string& _N
     if (_UserUID == LocalUser->UID)
     {
         LocalUser->Nick = _Nick;
-        AddSystemMessage(std::format("Your nick was changed to '{}'", _Nick));
+        AddSystemMessage(std::format("Your nick was changed to '{}'.", _Nick));
         return;
     }
 
@@ -350,7 +367,7 @@ void stc::Client::ChangeUserNick(const uint64_t& _UserUID, const std::string& _N
     if (UserPtr)
     {
         // Change nick for user.
-        AddSystemMessage(std::format("Change nick for user '{}' to '{}'.", UserPtr->Nick, _Nick));
+        AddSystemMessage(std::format("User '{}' changed nick to '{}'.", UserPtr->Nick, _Nick));
         UserPtr->Nick = _Nick;
     }
     else

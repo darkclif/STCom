@@ -9,6 +9,11 @@
 namespace stc::net 
 {
 	/*
+	*	Some global variable.
+	*/
+	const uint16_t SERVER_DEFAULT_PORT = 51237;
+
+	/*
 	*	Raw packet wrapper.
 	*/
 	class PacketWrapper
@@ -61,6 +66,9 @@ namespace stc::net
 		const ::flatbuffers::Vector<uint8_t>* PacketContent = nullptr;
 	};
 
+	/*
+	*	Wrapper to store public key or something like that.
+	*/
 	class Key
 	{
 	public:
@@ -85,6 +93,9 @@ namespace stc::net
 		std::vector<uint8_t> KeyData;
 	};
 
+	/*
+	*	Wrap nested packet with generic STC packet.
+	*/
 	template<typename T>
 	stc::net::PacketWrapper CreateNestedPacket(flatbuffers::FlatBufferBuilder& Builder, uint32_t Type, T& NestedPacketBuilder)
 	{
@@ -110,7 +121,13 @@ namespace stc::net
 		return stc::net::PacketWrapper(PacketBuf, PacketSize);
 	}
 
+	/*
+	*	Create simple packet with no nested packet inside. Just type id.
+	*/
 	stc::net::PacketWrapper CreateTypePacket(flatbuffers::FlatBufferBuilder& Builder, uint32_t Type);
-	void Net_Send(const net::PacketWrapper& Packet, ENetHost* Host, ENetPeer* Peer);
 
+	/*
+	*	Send packet to enet peer on given host.
+	*/
+	void Net_Send(const net::PacketWrapper& Packet, ENetHost* Host, ENetPeer* Peer);
 }

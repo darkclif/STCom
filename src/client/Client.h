@@ -35,7 +35,8 @@ namespace stc
                 elements.push_back(ftxui::text(Msg->Print()));
             }
 
-            return ftxui::window(ftxui::text("Chat"), ftxui::vbox(std::move(elements))) | ftxui::flex;
+            auto ChatScroll = ftxui::vbox(std::move(elements), ftxui::text("") | ftxui::focus) | ftxui::vscroll_indicator | ftxui::yframe;
+            return ftxui::window(ftxui::text("Chat"), ChatScroll) | ftxui::flex;
         }
 
     private:
@@ -90,7 +91,7 @@ namespace stc
         /*
         *   Network.
         */ 
-        void SetupNetworkClient();
+        void ConnectToServer(const std::string& Address);
         void ShutdownNetworkClient();
 
         void HandleEvent(const ENetEvent& Event);
@@ -142,9 +143,11 @@ namespace stc
         /*
         *   Network.
         */
+        bool bConnectedToServer = false;
         ENetHost* ClientHost;
         ENetPeer* PeerConnection;
         
+        net::Key PublicKey = net::Key();
         User* LocalUser = nullptr;
     };
 }
