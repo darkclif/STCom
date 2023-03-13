@@ -2,33 +2,6 @@
  
 namespace NetPackets;
 
-/* 
-enum Color:byte { Red = 0, Green, Blue = 2 }
-union Equipment { Weapon } // Optionally add more tables.
-struct Vec3 {
-  x:float;
-  y:float;
-  z:float;
-}
-table Weapon {
-  name:string;
-  damage:short;
-}
-table Monster {
-  pos:Vec3; // Struct.
-  mana:short = 150;
-  hp:short = 100;
-  name:string;
-  friendly:bool = false (deprecated);
-  inventory:[ubyte];  // Vector of scalars.
-  color:Color = Blue; // Enum.
-  weapons:[Weapon];   // Vector of tables.
-  equipped:Equipment; // Union.
-  path:[Vec3];        // Vector of structs.
-}
-root_type Monster;
-*/
-
 // Base packet
 table STCPacket 
 {
@@ -50,39 +23,88 @@ CLIENT -> SERVER
 	0001	- SERVER_INFO_REQUEST			- Ask server for info.
 	0002	- JOIN_SERVER					- Join server giving basic information.
 	0003	- CLIENT_CHAT_MESSAGE			- Client send message to server.
+	0004	- CLIENT_REQ_NICK_CHANGE		- Client requested nick change.
 
 ---------------------------------------------
 SERVER -> CLIENT 
 	1001	- SERVER_ANNOUNCE				- Return info about server.
-	1002	- SERVER_USER_ACCEPTED			- Accept connection from an user and give session key.
+	1002	- SERVER_USER_ACCEPTED			- Accept connection from an user.
 	1003	- SERVER_CHAT_MESSAGE			- Server send message to all clients.
-
+	1004	- SERVER_USER_CHANGED_NICK		- User changed nick successfully and it was accepted by the server.
+	1005	- SERVER_USER_JOINED			- Another user joined the server.
+	1006	- SERVER_USER_CHANGED_STATUS	- User changed status.
 */
 // ------------------------------------------
-// CLIENT -> SERVER
-table ClientJoinServer // this should be encrypted with public server key
+// STRUCTURES
+table UserInfo
 {
+	user_uid: uint64;
+	nick: string;
+}
+
+// ------------------------------------------
+// SESSION PRIMITIVES
+table Session
+{
+	session_id: uint32;
+	counter: uint32;
+}
+
+// ------------------------------------------
+// CLIENT -> SERVER
+table ClientJoinServer // 0002
+{
+	// this should be encrypted with public server key
 	nick: string;
 	pub_key: [ubyte];
 }
 
-table ClientChatMessage
+table ClientChatMessage // 0003
 {
 	content: string;
+}
+
+table ClientRequestNickChange // 0004
+{
+	nick: string;
 }
 
 // ------------------------------------------
 // SERVER -> CLIENT 
-table ServerAnnounce 
+table ServerAnnounce // 1001 
 {
 	name: string;
-	friendly_name: string;
 	pub_key: [ubyte];
 }
 
-table ServerChatMessage
+table ServerUserAccepted // 1002
 {
+	user_uid: uint64;
+	users: [UserInfo];
+}
+
+table ServerChatMessage // 1003
+{
+	user_uid: uint64;
 	content: string;
+}
+
+table ServerUserChangedNick // 1004
+{
+	user_uid: uint64;
+	nick: string;
+}
+
+table ServerUserJoined // 1005
+{
+	user_uid: uint64;
+	nick: string;
+}
+
+table ServerUserChangedStatus // 1006
+{
+	user_uid: uint64;
+	connected: bool;
 }
 
 root_type STCPacket;

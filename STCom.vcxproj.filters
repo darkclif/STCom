@@ -27,9 +27,29 @@
     <ClCompile Include="src\common\NetworkHelpers.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\common\NetworkHost.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\client\Messages.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\client\ClientIncoming.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\client\ClientOutgoing.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\server\ServerIncoming.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\server\ServerOutgoing.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\common\Random.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="src\schemas\monster.fbs" />
     <None Include="src\schemas\chatpacket.fbs" />
   </ItemGroup>
   <ItemGroup>
@@ -45,13 +65,22 @@
     <ClInclude Include="src\common\Timer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\schemas\monster_generated.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\schemas\chatpacket_generated.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\common\NetworkHelpers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\NetworkHost.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\Random.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\client\Messages.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\Strings.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

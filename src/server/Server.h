@@ -25,14 +25,12 @@ namespace stc
 
     struct ChatUser
     {
-        uint32_t UID;
+        uint64_t    UID;
         std::string Name;
 
-        ENetPeer* Peer;
-        uint64_t Secret;
-        uint64_t LastActive;
+        ENetPeer*   Peer;
+        net::Key    NetKey;
     };
-
 
 
     struct Server
@@ -53,21 +51,34 @@ namespace stc
     private:
         void HandleEvent(const ENetEvent& Event);
 
-        // Incoming packets
+        // Incoming events
         void OnEventReceive(const ENetEvent& Event);
         void OnEventConnect(const ENetEvent& Event);
         void OnEventDisconnect(const ENetEvent& Event);
 
-        void OnClientJoinServer(net::PacketWrapper& Packet);
-        void OnClientChatMessage(net::PacketWrapper& Packet);
+        // Incoming packets
+        void OnClientServerInfoRequest(net::PacketWrapperDecoder& Packet, ChatUser* User);
+        void OnClientJoinServer(net::PacketWrapperDecoder& Packet, ChatUser* User);
+        void OnClientChatMessage(net::PacketWrapperDecoder& Packet, ChatUser* User);
+        void OnClientRequestNickChange(net::PacketWrapperDecoder& Packet, ChatUser* User);
 
         // Outgoing packets
-        void BroadcastAll(const ChatUser* ExceptUser = nullptr);
+        //void Net_SendAnnounce();
+        void Net_SendUserAccepted(ChatUser* User);
+
+        void Net_BroadcastUserJoined(ChatUser* User);
+        void Net_BroadcastChatMessage(const std::string& Message, const ChatUser* User);
+        void Net_BroadcastUserChangedNick(const std::string& Nick, ChatUser* User);
+
+        // Outgoing packets helpers
+        void Net_BroadcastAll(const net::PacketWrapper& Packet, const ChatUser* ExceptUser = nullptr);
 
     private:
         ChatUser* CreateNewTempUser(ENetPeer* Peer);
+        bool IsNickValid(const std::string& Nick);
 
     private:
+        std::map<uint32_t, std::function<void(net::PacketWrapperDecoder&,ChatUser*)>> PacketTypeCallbacks;
         std::map<std::string, ChatLog>  Channels;
 
         std::vector<std::shared_ptr<ChatUser>> TempUsers;
@@ -75,5 +86,9 @@ namespace stc
 
         ENetHost* ServerHost;
         bool bRun;
+
+        // Server info
+        std::string ServerName;
+        net::Key    PublicKey;
     };
 }

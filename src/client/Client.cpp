@@ -1,8 +1,9 @@
 #include "Client.h"
+#include <format>
+
 #include "ftxui/component/loop.hpp"
 #include "schemas/chatpacket_generated.h"
-
-#include <format>
+#include "common/Strings.h"
 
 
 ftxui::Component Window(std::string title, ftxui::Component component) {
@@ -18,6 +19,15 @@ stc::Client::Client()
 
     ChatLog = std::shared_ptr<stc::ChatLogUI>(new stc::ChatLogUI(Messages));
     UserList = std::shared_ptr<stc::UsersListUI>(new stc::UsersListUI(Users));
+
+    /* Create packet type dispatcher */
+    PacketTypeCallbacks = {
+        {   1001,   std::bind(&stc::Client::OnServerAnnounce, this, std::placeholders::_1) }
+        , { 1002,   std::bind(&stc::Client::OnServerUserAccepted, this, std::placeholders::_1) }
+        , { 1003,   std::bind(&stc::Client::OnServerChatMessage, this, std::placeholders::_1) }
+        , { 1004,   std::bind(&stc::Client::OnServerUserNickChange, this, std::placeholders::_1) }
+        , { 1005,   std::bind(&stc::Client::OnServerUserJoined, this, std::placeholders::_1) }
+    };
 }
 
 stc::Client::~Client()
@@ -29,13 +39,8 @@ stc::Client::~Client()
 int stc::Client::Run()
 {
     // Connect to server
+    LocalUser = AddUser(User{ "You", 0 }); // And local user.
     SetupNetworkClient();
-
-    // Debug data
-    AddMessage(Message{ 0, "User", "Test!" });
-    AddUser(User{ "User1" });
-    AddUser(User{ "Useffffr2" });
-    AddUser(User{ "User3" });
 
     // Create interface
     std::function<bool(ftxui::Event)> OnMessageInput = std::bind(&stc::Client::OnMessageInput, this, std::placeholders::_1);
@@ -60,9 +65,19 @@ int stc::Client::Run()
     while (!ShutdownTimer.Done() && !MainLoop.HasQuitted())
     {
         // Process network.
-        ProcessNetworkEvents();
+        ENetEvent Event;
+        bool bHadEvent = false;
+        while (enet_host_service(ClientHost, &Event, 0) > 0)
+        {
+            HandleEvent(Event);
+            bHadEvent = true;
+        }
 
         // Render.
+        if (bHadEvent)
+        {
+            Screen.RequestAnimationFrame();
+        }
         MainLoop.RunOnce();
         
         // Throttle.
@@ -74,11 +89,57 @@ int stc::Client::Run()
 
 bool stc::Client::OnMessageInput(ftxui::Event Event)
 {
-    if (Event == ftxui::Event::Return) 
+    if (Event == ftxui::Event::Return && InputMessage.size() > 0)
     {
-        Net_SendMessage(InputMessage);
-        AddMessage(Message{ 0, "Me", InputMessage});
+        std::string InMessage = InputMessage;
         InputMessage.clear();
+
+        const bool bCommand = (InMessage[0] == '/');
+        if (bCommand)
+        {
+            auto CommandStr = InMessage.substr(1);
+
+            auto Tokens = tools::SplitString(CommandStr);
+            if (Tokens.size() < 1)
+            {
+                AddSystemMessage("Empty command.");
+                return true;
+            }
+
+            if(Tokens[0] == "announce")
+            {
+                Net_SendServerInfoRequest();
+                AddSystemMessage("Announce packet sent.");
+            }
+            else if (Tokens[0] == "join")
+            {
+                auto TmpKey = net::Key();
+                Net_SendServerJoin(LocalUser->Nick, TmpKey);
+                AddSystemMessage("Join packet sent.");
+            }
+            else if (Tokens[0] == "nick")
+            {
+                if (Tokens.size() < 2)
+                {
+                    AddSystemMessage("You passed empty nick. This is bad.");
+                    return true;
+                }
+
+                auto Nick = Tokens[1];
+                Net_SendServerChangeNick(Nick);
+            }
+            else
+            {
+                AddSystemMessage("Unknown command.");
+                return true;
+            }
+        }
+        else
+        {
+            Net_SendMessage(InMessage);
+            AddMyMessage(InMessage);
+        }
+
         return true;
     }
 
@@ -171,104 +232,158 @@ void stc::Client::ShutdownNetworkClient()
     enet_peer_reset(PeerConnection);
 }
 
-void stc::Client::ProcessNetworkEvents()
+void stc::Client::HandleEvent(const ENetEvent& Event)
 {
-    ENetEvent Event;
-    char Name[] = "Aaa";
-
-    while (enet_host_service(ClientHost, &Event, 0) > 0)
+    static char DummyData[] = "Server";
+    
+    switch (Event.type)
     {
-        switch (Event.type)
-        {
-        case ENET_EVENT_TYPE_CONNECT:
-            AddSystemMessage(std::format("A new client connected from %x:%u.\n",
-                Event.peer->address.host,
-                Event.peer->address.port
-            ));
+    case ENET_EVENT_TYPE_CONNECT:
+        AddSystemDebugMessage(std::format("A new client connected from {}:{}.\n",
+            Event.peer->address.host,
+            Event.peer->address.port
+        ));
 
-            /* Store any relevant client information here. */
-            Event.peer->data = Name;
-            break;
+        OnEventConnect(Event);
 
-        case ENET_EVENT_TYPE_RECEIVE:
-            AddSystemMessage(std::format("A packet of length %zu containing %s was received from %s on channel %u.",
-                Event.packet->dataLength,
-                (char*)Event.packet->data,
-                (char*)Event.peer->data,
-                Event.channelID
-            ));
+        /* Store any relevant client information here. */
+        Event.peer->data = DummyData;
+        break;
 
-            /* Clean up the packet now that we're done using it. */
-            enet_packet_destroy(Event.packet);
-            break;
+    case ENET_EVENT_TYPE_RECEIVE:
+        //AddSystemDebugMessage(std::format("A packet of length {} received on channel {}.",
+        //    Event.packet->dataLength,
+        //    Event.channelID
+        //));
 
-        case ENET_EVENT_TYPE_DISCONNECT:
-            AddSystemMessage(std::format("%s disconnected.\n", 
-                (char*)Event.peer->data
-            ));
+        OnEventReceive(Event);
 
-            /* Reset the peer's client information. */
-            Event.peer->data = NULL;
-            break;
-        }
+        /* Clean up the packet now that we're done using it. */
+        enet_packet_destroy(Event.packet);
+        break;
+
+    case ENET_EVENT_TYPE_DISCONNECT:
+        AddSystemDebugMessage(std::format("{} disconnected.\n",
+            (char*)Event.peer->data
+        ));
+
+        OnEventDisconnect(Event);
+
+        /* Reset the peer's client information. */
+        Event.peer->data = nullptr;
+        break;
     }
 }
 
-void stc::Client::Net_SendMessage(const std::string& Content)
+void stc::Client::OnEventReceive(const ENetEvent& Event)
 {
-    // Create flatbuffer packet.
-    flatbuffers::FlatBufferBuilder NetBuilder(256);
+    void* Data = Event.peer->data;
 
-    // Message
-    auto Msg = NetBuilder.CreateString(Content);
+    net::PacketWrapperDecoder Packet(Event.packet->data, Event.packet->dataLength);
+    uint32_t PacketTypeID = Packet.GetType();
 
-    NetPackets::ClientChatMessageBuilder MessageBuilder(NetBuilder);
-    MessageBuilder.add_content(Msg);
-    auto MessagePacket = MessageBuilder.Finish();
-    
-    NetBuilder.Finish(MessagePacket);
-    uint8_t* ChatMessageBuf = NetBuilder.GetBufferPointer();
-    uint32_t ChatMessageSize = NetBuilder.GetSize();
+    auto CallbackIt = PacketTypeCallbacks.find(PacketTypeID);
+    if (CallbackIt == PacketTypeCallbacks.end())
+    {
+        printf("Unknown packet type %d.\n", PacketTypeID);
+        return;
+    }
+    else
+    {
+        auto& CallbackFn = CallbackIt->second;
+        CallbackFn(Packet);
+    }
+}
 
-    // Packet
-    auto MsgPacket = NetBuilder.CreateVector(ChatMessageBuf, ChatMessageSize);
+void stc::Client::OnEventConnect(const ENetEvent& Event)
+{
+    // We shouldn't receive connection request on client. Ignore.
+}
 
-    NetPackets::STCPacketBuilder PacketBuilder(NetBuilder);
-    PacketBuilder.add_type(2);
-    PacketBuilder.add_content(MsgPacket);
-    auto MainPacket = PacketBuilder.Finish();
-    
-    NetBuilder.Finish(MainPacket);
-    uint8_t* PacketBuf = NetBuilder.GetBufferPointer();
-    uint32_t PacketSize = NetBuilder.GetSize();
-    
-    // Create enet reliable packet
-    ENetPacket* EnetPacket = enet_packet_create(
-        PacketBuf,
-        PacketSize,
-        ENET_PACKET_FLAG_RELIABLE
-    );
+void stc::Client::OnEventDisconnect(const ENetEvent& Event)
+{
+    void* Data = Event.peer->data;
 
-    // DEBUG: Try to decode message.
-    auto OutPacket = NetPackets::GetSTCPacket(PacketBuf);
-    auto PacketType = OutPacket->type();
-    auto PacketContent = OutPacket->content();
+    AddSystemMessage("Server disconnected.");
+}
 
-    auto Message = ::flatbuffers::GetRoot<NetPackets::ClientChatMessage>(PacketContent->data());
-    auto MessageContent = Message->content()->str();
+stc::User* stc::Client::AddUser(const User& user)
+{
+    Users.push_back(std::shared_ptr<User>(new User{ user }));
+    return Users.back().get();
+}
 
-    AddSystemMessage(std::format("DECODED MESSAGE: {} {}", PacketType, MessageContent));
+stc::User* stc::Client::AddUserIfNotExist(const User& user)
+{
+    User* User = GetUserByUID(user.UID);
+    if (!User)
+    {
+        User = AddUser(user);
+    }
+    return User;
+}
 
-    /* Extend the packet so and append the string "foo", so it now */
-    /* contains "packetfoo\0"                                      */
-    //enet_packet_resize(packet, strlen("packetfoo") + 1);
-    //strcpy(&packet->data[strlen("packet")], "foo");
+stc::User* stc::Client::GetUserByUID(const uint64_t& _UserUID)
+{
+    auto UserIt = std::find_if(Users.begin(), Users.end(), [&](const std::shared_ptr<User>& _UserPtr) { return _UserPtr->UID == _UserUID; });
+    if (UserIt != Users.end())
+    {
+        return UserIt->get();
+    }
+    else
+    {
+        return nullptr;
+    }
+}
 
-    /* Send the packet to the peer over channel id 0. */
-    /* One could also broadcast the packet by         */
-    /* enet_host_broadcast (host, 0, packet);         */
-    enet_peer_send(PeerConnection, 0, EnetPacket);
+void stc::Client::ChangeUserNick(const uint64_t& _UserUID, const std::string& _Nick)
+{
+    // Check if this is info about our nick.
+    if (_UserUID == LocalUser->UID)
+    {
+        LocalUser->Nick = _Nick;
+        AddSystemMessage(std::format("Your nick was changed to '{}'", _Nick));
+        return;
+    }
 
-    /* One could just use enet_host_service() instead. */
-    enet_host_flush(ClientHost);
+    auto UserPtr = GetUserByUID(_UserUID);
+    if (UserPtr)
+    {
+        // Change nick for user.
+        AddSystemMessage(std::format("Change nick for user '{}' to '{}'.", UserPtr->Nick, _Nick));
+        UserPtr->Nick = _Nick;
+    }
+    else
+    {
+        // Cannot find user.
+        AddSystemDebugMessage(std::format("Cannot find user for nick change. UID={}; NICK={}", _UserUID, _Nick));
+    }
+}
+
+void stc::Client::AddMessage(const Message::ShPtr& msg)
+{
+    Messages.push_back(msg);
+}
+
+void stc::Client::AddUserMessage(const User& _ChatUser, const std::string& _Content)
+{
+    const std::string& UserNickRef = _ChatUser.Nick;
+    AddMessage(Message::ShPtr(new MessageUser(UserNickRef, _Content)));
+}
+
+void stc::Client::AddMyMessage(const std::string& _Content)
+{
+    AddMessage(Message::ShPtr(new MessageUser(LocalUser->Nick, _Content)));
+}
+
+void stc::Client::AddSystemMessage(const std::string& Content)
+{
+    AddMessage(Message::ShPtr(new MessageStatic("SYSTEM", Content)));
+}
+
+inline void stc::Client::AddSystemDebugMessage(const std::string& Content)
+{
+#ifdef _DEBUG
+    AddMessage(Message::ShPtr(new MessageStatic("SYSTEM DEBUG", Content)));
+#endif
 }

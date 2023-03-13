@@ -21,17 +21,38 @@ struct STCPacketBuilder;
 struct STCErrorPacket;
 struct STCErrorPacketBuilder;
 
+struct UserInfo;
+struct UserInfoBuilder;
+
+struct Session;
+struct SessionBuilder;
+
 struct ClientJoinServer;
 struct ClientJoinServerBuilder;
 
 struct ClientChatMessage;
 struct ClientChatMessageBuilder;
 
+struct ClientRequestNickChange;
+struct ClientRequestNickChangeBuilder;
+
 struct ServerAnnounce;
 struct ServerAnnounceBuilder;
 
+struct ServerUserAccepted;
+struct ServerUserAcceptedBuilder;
+
 struct ServerChatMessage;
 struct ServerChatMessageBuilder;
+
+struct ServerUserChangedNick;
+struct ServerUserChangedNickBuilder;
+
+struct ServerUserJoined;
+struct ServerUserJoinedBuilder;
+
+struct ServerUserChangedStatus;
+struct ServerUserChangedStatusBuilder;
 
 struct STCPacket FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef STCPacketBuilder Builder;
@@ -159,6 +180,120 @@ inline ::flatbuffers::Offset<STCErrorPacket> CreateSTCErrorPacketDirect(
       message__);
 }
 
+struct UserInfo FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef UserInfoBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_USER_UID = 4,
+    VT_NICK = 6
+  };
+  uint64_t user_uid() const {
+    return GetField<uint64_t>(VT_USER_UID, 0);
+  }
+  const ::flatbuffers::String *nick() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_NICK);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint64_t>(verifier, VT_USER_UID, 8) &&
+           VerifyOffset(verifier, VT_NICK) &&
+           verifier.VerifyString(nick()) &&
+           verifier.EndTable();
+  }
+};
+
+struct UserInfoBuilder {
+  typedef UserInfo Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_user_uid(uint64_t user_uid) {
+    fbb_.AddElement<uint64_t>(UserInfo::VT_USER_UID, user_uid, 0);
+  }
+  void add_nick(::flatbuffers::Offset<::flatbuffers::String> nick) {
+    fbb_.AddOffset(UserInfo::VT_NICK, nick);
+  }
+  explicit UserInfoBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<UserInfo> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<UserInfo>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<UserInfo> CreateUserInfo(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint64_t user_uid = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> nick = 0) {
+  UserInfoBuilder builder_(_fbb);
+  builder_.add_user_uid(user_uid);
+  builder_.add_nick(nick);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<UserInfo> CreateUserInfoDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint64_t user_uid = 0,
+    const char *nick = nullptr) {
+  auto nick__ = nick ? _fbb.CreateString(nick) : 0;
+  return NetPackets::CreateUserInfo(
+      _fbb,
+      user_uid,
+      nick__);
+}
+
+struct Session FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef SessionBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_SESSION_ID = 4,
+    VT_COUNTER = 6
+  };
+  uint32_t session_id() const {
+    return GetField<uint32_t>(VT_SESSION_ID, 0);
+  }
+  uint32_t counter() const {
+    return GetField<uint32_t>(VT_COUNTER, 0);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint32_t>(verifier, VT_SESSION_ID, 4) &&
+           VerifyField<uint32_t>(verifier, VT_COUNTER, 4) &&
+           verifier.EndTable();
+  }
+};
+
+struct SessionBuilder {
+  typedef Session Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_session_id(uint32_t session_id) {
+    fbb_.AddElement<uint32_t>(Session::VT_SESSION_ID, session_id, 0);
+  }
+  void add_counter(uint32_t counter) {
+    fbb_.AddElement<uint32_t>(Session::VT_COUNTER, counter, 0);
+  }
+  explicit SessionBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<Session> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<Session>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<Session> CreateSession(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t session_id = 0,
+    uint32_t counter = 0) {
+  SessionBuilder builder_(_fbb);
+  builder_.add_counter(counter);
+  builder_.add_session_id(session_id);
+  return builder_.Finish();
+}
+
 struct ClientJoinServer FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef ClientJoinServerBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
@@ -275,18 +410,65 @@ inline ::flatbuffers::Offset<ClientChatMessage> CreateClientChatMessageDirect(
       content__);
 }
 
+struct ClientRequestNickChange FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef ClientRequestNickChangeBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_NICK = 4
+  };
+  const ::flatbuffers::String *nick() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_NICK);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_NICK) &&
+           verifier.VerifyString(nick()) &&
+           verifier.EndTable();
+  }
+};
+
+struct ClientRequestNickChangeBuilder {
+  typedef ClientRequestNickChange Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_nick(::flatbuffers::Offset<::flatbuffers::String> nick) {
+    fbb_.AddOffset(ClientRequestNickChange::VT_NICK, nick);
+  }
+  explicit ClientRequestNickChangeBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<ClientRequestNickChange> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<ClientRequestNickChange>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<ClientRequestNickChange> CreateClientRequestNickChange(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> nick = 0) {
+  ClientRequestNickChangeBuilder builder_(_fbb);
+  builder_.add_nick(nick);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<ClientRequestNickChange> CreateClientRequestNickChangeDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *nick = nullptr) {
+  auto nick__ = nick ? _fbb.CreateString(nick) : 0;
+  return NetPackets::CreateClientRequestNickChange(
+      _fbb,
+      nick__);
+}
+
 struct ServerAnnounce FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef ServerAnnounceBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_NAME = 4,
-    VT_FRIENDLY_NAME = 6,
-    VT_PUB_KEY = 8
+    VT_PUB_KEY = 6
   };
   const ::flatbuffers::String *name() const {
     return GetPointer<const ::flatbuffers::String *>(VT_NAME);
-  }
-  const ::flatbuffers::String *friendly_name() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_FRIENDLY_NAME);
   }
   const ::flatbuffers::Vector<uint8_t> *pub_key() const {
     return GetPointer<const ::flatbuffers::Vector<uint8_t> *>(VT_PUB_KEY);
@@ -295,8 +477,6 @@ struct ServerAnnounce FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_NAME) &&
            verifier.VerifyString(name()) &&
-           VerifyOffset(verifier, VT_FRIENDLY_NAME) &&
-           verifier.VerifyString(friendly_name()) &&
            VerifyOffset(verifier, VT_PUB_KEY) &&
            verifier.VerifyVector(pub_key()) &&
            verifier.EndTable();
@@ -309,9 +489,6 @@ struct ServerAnnounceBuilder {
   ::flatbuffers::uoffset_t start_;
   void add_name(::flatbuffers::Offset<::flatbuffers::String> name) {
     fbb_.AddOffset(ServerAnnounce::VT_NAME, name);
-  }
-  void add_friendly_name(::flatbuffers::Offset<::flatbuffers::String> friendly_name) {
-    fbb_.AddOffset(ServerAnnounce::VT_FRIENDLY_NAME, friendly_name);
   }
   void add_pub_key(::flatbuffers::Offset<::flatbuffers::Vector<uint8_t>> pub_key) {
     fbb_.AddOffset(ServerAnnounce::VT_PUB_KEY, pub_key);
@@ -330,11 +507,9 @@ struct ServerAnnounceBuilder {
 inline ::flatbuffers::Offset<ServerAnnounce> CreateServerAnnounce(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     ::flatbuffers::Offset<::flatbuffers::String> name = 0,
-    ::flatbuffers::Offset<::flatbuffers::String> friendly_name = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<uint8_t>> pub_key = 0) {
   ServerAnnounceBuilder builder_(_fbb);
   builder_.add_pub_key(pub_key);
-  builder_.add_friendly_name(friendly_name);
   builder_.add_name(name);
   return builder_.Finish();
 }
@@ -342,28 +517,94 @@ inline ::flatbuffers::Offset<ServerAnnounce> CreateServerAnnounce(
 inline ::flatbuffers::Offset<ServerAnnounce> CreateServerAnnounceDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
     const char *name = nullptr,
-    const char *friendly_name = nullptr,
     const std::vector<uint8_t> *pub_key = nullptr) {
   auto name__ = name ? _fbb.CreateString(name) : 0;
-  auto friendly_name__ = friendly_name ? _fbb.CreateString(friendly_name) : 0;
   auto pub_key__ = pub_key ? _fbb.CreateVector<uint8_t>(*pub_key) : 0;
   return NetPackets::CreateServerAnnounce(
       _fbb,
       name__,
-      friendly_name__,
       pub_key__);
+}
+
+struct ServerUserAccepted FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef ServerUserAcceptedBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_USER_UID = 4,
+    VT_USERS = 6
+  };
+  uint64_t user_uid() const {
+    return GetField<uint64_t>(VT_USER_UID, 0);
+  }
+  const ::flatbuffers::Vector<::flatbuffers::Offset<NetPackets::UserInfo>> *users() const {
+    return GetPointer<const ::flatbuffers::Vector<::flatbuffers::Offset<NetPackets::UserInfo>> *>(VT_USERS);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint64_t>(verifier, VT_USER_UID, 8) &&
+           VerifyOffset(verifier, VT_USERS) &&
+           verifier.VerifyVector(users()) &&
+           verifier.VerifyVectorOfTables(users()) &&
+           verifier.EndTable();
+  }
+};
+
+struct ServerUserAcceptedBuilder {
+  typedef ServerUserAccepted Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_user_uid(uint64_t user_uid) {
+    fbb_.AddElement<uint64_t>(ServerUserAccepted::VT_USER_UID, user_uid, 0);
+  }
+  void add_users(::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<NetPackets::UserInfo>>> users) {
+    fbb_.AddOffset(ServerUserAccepted::VT_USERS, users);
+  }
+  explicit ServerUserAcceptedBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<ServerUserAccepted> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<ServerUserAccepted>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<ServerUserAccepted> CreateServerUserAccepted(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint64_t user_uid = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<::flatbuffers::Offset<NetPackets::UserInfo>>> users = 0) {
+  ServerUserAcceptedBuilder builder_(_fbb);
+  builder_.add_user_uid(user_uid);
+  builder_.add_users(users);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<ServerUserAccepted> CreateServerUserAcceptedDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint64_t user_uid = 0,
+    const std::vector<::flatbuffers::Offset<NetPackets::UserInfo>> *users = nullptr) {
+  auto users__ = users ? _fbb.CreateVector<::flatbuffers::Offset<NetPackets::UserInfo>>(*users) : 0;
+  return NetPackets::CreateServerUserAccepted(
+      _fbb,
+      user_uid,
+      users__);
 }
 
 struct ServerChatMessage FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef ServerChatMessageBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_CONTENT = 4
+    VT_USER_UID = 4,
+    VT_CONTENT = 6
   };
+  uint64_t user_uid() const {
+    return GetField<uint64_t>(VT_USER_UID, 0);
+  }
   const ::flatbuffers::String *content() const {
     return GetPointer<const ::flatbuffers::String *>(VT_CONTENT);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
+           VerifyField<uint64_t>(verifier, VT_USER_UID, 8) &&
            VerifyOffset(verifier, VT_CONTENT) &&
            verifier.VerifyString(content()) &&
            verifier.EndTable();
@@ -374,6 +615,9 @@ struct ServerChatMessageBuilder {
   typedef ServerChatMessage Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
+  void add_user_uid(uint64_t user_uid) {
+    fbb_.AddElement<uint64_t>(ServerChatMessage::VT_USER_UID, user_uid, 0);
+  }
   void add_content(::flatbuffers::Offset<::flatbuffers::String> content) {
     fbb_.AddOffset(ServerChatMessage::VT_CONTENT, content);
   }
@@ -390,19 +634,200 @@ struct ServerChatMessageBuilder {
 
 inline ::flatbuffers::Offset<ServerChatMessage> CreateServerChatMessage(
     ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint64_t user_uid = 0,
     ::flatbuffers::Offset<::flatbuffers::String> content = 0) {
   ServerChatMessageBuilder builder_(_fbb);
+  builder_.add_user_uid(user_uid);
   builder_.add_content(content);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<ServerChatMessage> CreateServerChatMessageDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint64_t user_uid = 0,
     const char *content = nullptr) {
   auto content__ = content ? _fbb.CreateString(content) : 0;
   return NetPackets::CreateServerChatMessage(
       _fbb,
+      user_uid,
       content__);
+}
+
+struct ServerUserChangedNick FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef ServerUserChangedNickBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_USER_UID = 4,
+    VT_NICK = 6
+  };
+  uint64_t user_uid() const {
+    return GetField<uint64_t>(VT_USER_UID, 0);
+  }
+  const ::flatbuffers::String *nick() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_NICK);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint64_t>(verifier, VT_USER_UID, 8) &&
+           VerifyOffset(verifier, VT_NICK) &&
+           verifier.VerifyString(nick()) &&
+           verifier.EndTable();
+  }
+};
+
+struct ServerUserChangedNickBuilder {
+  typedef ServerUserChangedNick Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_user_uid(uint64_t user_uid) {
+    fbb_.AddElement<uint64_t>(ServerUserChangedNick::VT_USER_UID, user_uid, 0);
+  }
+  void add_nick(::flatbuffers::Offset<::flatbuffers::String> nick) {
+    fbb_.AddOffset(ServerUserChangedNick::VT_NICK, nick);
+  }
+  explicit ServerUserChangedNickBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<ServerUserChangedNick> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<ServerUserChangedNick>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<ServerUserChangedNick> CreateServerUserChangedNick(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint64_t user_uid = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> nick = 0) {
+  ServerUserChangedNickBuilder builder_(_fbb);
+  builder_.add_user_uid(user_uid);
+  builder_.add_nick(nick);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<ServerUserChangedNick> CreateServerUserChangedNickDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint64_t user_uid = 0,
+    const char *nick = nullptr) {
+  auto nick__ = nick ? _fbb.CreateString(nick) : 0;
+  return NetPackets::CreateServerUserChangedNick(
+      _fbb,
+      user_uid,
+      nick__);
+}
+
+struct ServerUserJoined FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef ServerUserJoinedBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_USER_UID = 4,
+    VT_NICK = 6
+  };
+  uint64_t user_uid() const {
+    return GetField<uint64_t>(VT_USER_UID, 0);
+  }
+  const ::flatbuffers::String *nick() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_NICK);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint64_t>(verifier, VT_USER_UID, 8) &&
+           VerifyOffset(verifier, VT_NICK) &&
+           verifier.VerifyString(nick()) &&
+           verifier.EndTable();
+  }
+};
+
+struct ServerUserJoinedBuilder {
+  typedef ServerUserJoined Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_user_uid(uint64_t user_uid) {
+    fbb_.AddElement<uint64_t>(ServerUserJoined::VT_USER_UID, user_uid, 0);
+  }
+  void add_nick(::flatbuffers::Offset<::flatbuffers::String> nick) {
+    fbb_.AddOffset(ServerUserJoined::VT_NICK, nick);
+  }
+  explicit ServerUserJoinedBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<ServerUserJoined> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<ServerUserJoined>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<ServerUserJoined> CreateServerUserJoined(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint64_t user_uid = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> nick = 0) {
+  ServerUserJoinedBuilder builder_(_fbb);
+  builder_.add_user_uid(user_uid);
+  builder_.add_nick(nick);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<ServerUserJoined> CreateServerUserJoinedDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint64_t user_uid = 0,
+    const char *nick = nullptr) {
+  auto nick__ = nick ? _fbb.CreateString(nick) : 0;
+  return NetPackets::CreateServerUserJoined(
+      _fbb,
+      user_uid,
+      nick__);
+}
+
+struct ServerUserChangedStatus FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef ServerUserChangedStatusBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_USER_UID = 4,
+    VT_CONNECTED = 6
+  };
+  uint64_t user_uid() const {
+    return GetField<uint64_t>(VT_USER_UID, 0);
+  }
+  bool connected() const {
+    return GetField<uint8_t>(VT_CONNECTED, 0) != 0;
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint64_t>(verifier, VT_USER_UID, 8) &&
+           VerifyField<uint8_t>(verifier, VT_CONNECTED, 1) &&
+           verifier.EndTable();
+  }
+};
+
+struct ServerUserChangedStatusBuilder {
+  typedef ServerUserChangedStatus Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_user_uid(uint64_t user_uid) {
+    fbb_.AddElement<uint64_t>(ServerUserChangedStatus::VT_USER_UID, user_uid, 0);
+  }
+  void add_connected(bool connected) {
+    fbb_.AddElement<uint8_t>(ServerUserChangedStatus::VT_CONNECTED, static_cast<uint8_t>(connected), 0);
+  }
+  explicit ServerUserChangedStatusBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<ServerUserChangedStatus> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<ServerUserChangedStatus>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<ServerUserChangedStatus> CreateServerUserChangedStatus(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint64_t user_uid = 0,
+    bool connected = false) {
+  ServerUserChangedStatusBuilder builder_(_fbb);
+  builder_.add_user_uid(user_uid);
+  builder_.add_connected(connected);
+  return builder_.Finish();
 }
 
 inline const NetPackets::STCPacket *GetSTCPacket(const void *buf) {

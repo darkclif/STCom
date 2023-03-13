@@ -152,6 +152,20 @@
       <AdditionalDependencies>flatbuffers.lib;enet.lib;ftxui-component.lib;ftxui-dom.lib;ftxui-screen.lib;ws2_32.lib;winmm.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(ProjectDir)\libs\enet\lib\static\;$(ProjectDir)\libs\ftxui\lib\;$(ProjectDir)\libs\flatbuffer\lib</AdditionalLibraryDirectories>
     </Link>
+    <CustomBuildStep>
+      <Command>
+      </Command>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Outputs>
+      </Outputs>
+      <Inputs>
+      </Inputs>
+    </CustomBuildStep>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugServer|x64'">
     <ClCompile>
@@ -186,22 +200,31 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\client\ClientIncoming.cpp" />
+    <ClCompile Include="src\client\ClientOutgoing.cpp" />
+    <ClCompile Include="src\client\Messages.cpp" />
+    <ClCompile Include="src\common\NetworkHost.cpp" />
     <ClCompile Include="src\client\Client.cpp" />
     <ClCompile Include="src\common\NetworkHelpers.cpp" />
+    <ClCompile Include="src\common\Random.cpp" />
     <ClCompile Include="src\server\Server.cpp" />
+    <ClCompile Include="src\server\ServerIncoming.cpp" />
+    <ClCompile Include="src\server\ServerOutgoing.cpp" />
     <ClCompile Include="src\STCom.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\schemas\chatpacket.fbs" />
-    <None Include="src\schemas\monster.fbs" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\client\Messages.h" />
+    <ClInclude Include="src\common\NetworkHost.h" />
     <ClInclude Include="src\client\Client.h" />
     <ClInclude Include="src\common\NetworkHelpers.h" />
+    <ClInclude Include="src\common\Random.h" />
+    <ClInclude Include="src\common\Strings.h" />
     <ClInclude Include="src\common\Timer.h" />
     <ClInclude Include="src\enet_wrapper.h" />
     <ClInclude Include="src\schemas\chatpacket_generated.h" />
-    <ClInclude Include="src\schemas\monster_generated.h" />
     <ClInclude Include="src\server\Server.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

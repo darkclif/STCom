@@ -1,15 +1,22 @@
 #include "Server.h"
 
 #include <chrono>
-#include "enet_wrapper.h"
+
+#include "schemas/chatpacket_generated.h"
+#include "common/Random.h"
+
 
 stc::Server::Server():
     ServerHost {nullptr}
     , bRun{ true }
+    , ServerName{ "ExampleServerName" }
 {
     /* Create packet type dispatcher */
-    static std::map<uint32_t, std::function<void(stc::Server&)(net::PacketWrapper&)>> PacketTypeMap = {
-        { (uint32_t)0001, stc::Server::OnClientJoinServer }
+    PacketTypeCallbacks = {
+        {   0001,   std::bind(&stc::Server::OnClientServerInfoRequest, this, std::placeholders::_1, std::placeholders::_2) }
+        , { 0002,   std::bind(&stc::Server::OnClientJoinServer, this, std::placeholders::_1, std::placeholders::_2) }
+        , { 0003,   std::bind(&stc::Server::OnClientChatMessage, this, std::placeholders::_1, std::placeholders::_2) }
+        , { 0004,   std::bind(&stc::Server::OnClientRequestNickChange, this, std::placeholders::_1, std::placeholders::_2) }
     };
 }
 
@@ -63,13 +70,46 @@ void stc::Server::Run()
         // Throttle.
         Now = std::chrono::high_resolution_clock::now();
         ProcessingTime = (Now - Start);
-        std::this_thread::sleep_for(
-            std::max(
-                std::chrono::duration<float>(0.f),
-                std::chrono::duration<float>(SERVER_TICK) - ProcessingTime
-            )
+        const auto SleepTime = std::max(
+            std::chrono::duration<float>(0.f),
+            std::chrono::duration<float>(SERVER_TICK) - ProcessingTime
         );
+        std::this_thread::sleep_for(SleepTime);
     }
+}
+
+stc::ChatUser* stc::Server::CreateNewTempUser(ENetPeer* Peer)
+{
+    static uint32_t UserCounter = 0;
+    UserCounter++;
+
+    ChatUser* NewUser = new ChatUser{
+        0,
+        std::format("User{}", UserCounter),
+        Peer,
+        net::Key()
+    };
+    TempUsers.push_back(std::shared_ptr<ChatUser>(NewUser));
+
+    return NewUser;
+}
+
+bool stc::Server::IsNickValid(const std::string& Nick)
+{
+    // Size
+    if (!(Nick.size() > 2 && Nick.size() < 24))
+    {
+        return false;
+    }
+
+    // Only printable characters
+    const bool bNonePrintable = !std::all_of(Nick.begin(), Nick.end(), [](char c) { return std::isgraph(c); });
+    if (bNonePrintable)
+    {
+        return false;
+    }
+
+    return true;
 }
 
 void stc::Server::HandleEvent(const ENetEvent& Event)
@@ -89,7 +129,7 @@ void stc::Server::HandleEvent(const ENetEvent& Event)
     case ENET_EVENT_TYPE_RECEIVE:
         printf("A packet of length %zu containing %s was received from %s on channel %u.\n",
             Event.packet->dataLength,
-            Event.packet->data,
+            (char*)Event.packet->data,
             "Test",
             Event.channelID);
         
@@ -104,9 +144,7 @@ void stc::Server::HandleEvent(const ENetEvent& Event)
         printf("%s disconnected.\n", (char*)Event.peer->data);
     
         OnEventDisconnect(Event);
-        
-        /* Reset the peer's client information. */
-        Event.peer->data = NULL;
+
         break;
     }
 }
@@ -121,8 +159,20 @@ void stc::Server::OnEventReceive(const ENetEvent& Event)
         return;
     }
 
-    net::PacketWrapper Packet(Event.packet->data, Event.packet->dataLength);
-    
+    net::PacketWrapperDecoder Packet(Event.packet->data, Event.packet->dataLength);
+    uint32_t PacketTypeID = Packet.GetType();
+
+    auto CallbackIt = PacketTypeCallbacks.find(PacketTypeID);
+    if (CallbackIt == PacketTypeCallbacks.end())
+    {
+        printf("Unknown packet type %d.\n", PacketTypeID);
+        return;
+    }
+    else 
+    {
+        auto& CallbackFn = CallbackIt->second;
+        CallbackFn(Packet, User);
+    }
 }
 
 void stc::Server::OnEventConnect(const ENetEvent& Event)
@@ -130,55 +180,11 @@ void stc::Server::OnEventConnect(const ENetEvent& Event)
     /* Create new temporary User. */
     ChatUser* NewUser = CreateNewTempUser(Event.peer);
     Event.peer->data = (void*)NewUser;
-
-
 }
 
 void stc::Server::OnEventDisconnect(const ENetEvent& Event)
 {
-
-}
-
-void stc::Server::OnClientJoinServer(net::PacketWrapper& Packet)
-{
-    auto* Req = Packet.GetInternalPacket<NetPackets::ClientJoinServer>();
-
-    Req->nick();
-    Req->pub_key();
-}
-
-void stc::Server::OnClientChatMessage(net::PacketWrapper& Packet)
-{
-    auto* Req = Packet.GetInternalPacket<NetPackets::ClientJoinServer>();
-
-    Req->nick();
-    Req->pub_key();
-}
-
-void stc::Server::BroadcastAll(const ChatUser* ExceptUser)
-{
-    for (auto& User : ChannelUsers)
-    {
-        if (User.get() != ExceptUser) 
-        {
-            // Send packet to this user.
-        }
-    }
-}
-
-stc::ChatUser* stc::Server::CreateNewTempUser(ENetPeer* Peer)
-{
-    static uint32_t UserCounter = 0;
-    UserCounter++;
-
-    ChatUser* NewUser = new ChatUser{
-        0,
-        std::format("User{}", UserCounter),
-        Peer,
-        0,
-        0
-    };
-    TempUsers.push_back(std::shared_ptr<ChatUser>(NewUser));
-
-    return NewUser;
+    ChatUser* User = (ChatUser*)Event.peer->data;
+    User->Peer = nullptr;
+    Event.peer->data = nullptr;
 }

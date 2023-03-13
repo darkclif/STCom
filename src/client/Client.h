@@ -12,21 +12,16 @@
 #include "ftxui/dom/elements.hpp"  // for text, Element, operator|, window, flex, vbox
 
 #include "enet_wrapper.h"
+#include "client/Messages.h"
 #include "common/Timer.h"
+#include "common/NetworkHelpers.h"
 
 namespace stc
 {
-    struct Message
-    {
-        uint64_t Timestamp;
-        std::string Nick;
-        std::string Content;
-    };
-
     struct ChatLogUI
     {
     public:
-        ChatLogUI(const std::vector<Message>& _Messages):
+        ChatLogUI(const std::vector<Message::ShPtr>& _Messages):
             Messages{_Messages}
         {
         }
@@ -35,23 +30,23 @@ namespace stc
         ftxui::Element Render() {
             ftxui::Elements elements;
 
-            for (const Message& Msg: Messages) {
+            for (const Message::ShPtr& Msg: Messages) {
                 //elements.push_back(ftxui::hbox({ ftxui::text(Msg.Nick), ftxui::text(Msg.Content) }));
-                elements.push_back(ftxui::text(Msg.Nick + ": " + Msg.Content));
+                elements.push_back(ftxui::text(Msg->Print()));
             }
 
             return ftxui::window(ftxui::text("Chat"), ftxui::vbox(std::move(elements))) | ftxui::flex;
         }
 
     private:
-        const std::vector<Message>& Messages;
+        const std::vector<Message::ShPtr>& Messages;
     };
 
     struct User
     {
         std::string Nick;
-        bool bConnected = true;
         uint64_t UID = 0;
+        bool bConnected = true;
     };
 
     class UsersListUI
@@ -98,31 +93,44 @@ namespace stc
         void SetupNetworkClient();
         void ShutdownNetworkClient();
 
-        void ProcessNetworkEvents();
+        void HandleEvent(const ENetEvent& Event);
 
-        // In
-        void OnNetUserJoined() {};
+        // Incoming events
+        void OnEventReceive(const ENetEvent& Event);
+        void OnEventConnect(const ENetEvent& Event);
+        void OnEventDisconnect(const ENetEvent& Event);
 
-        // Out
+        // Incoming packets
+        void OnServerAnnounce(net::PacketWrapperDecoder& Packet);
+        void OnServerUserAccepted(net::PacketWrapperDecoder& Packet);
+        void OnServerChatMessage(net::PacketWrapperDecoder& Packet);
+        void OnServerUserNickChange(net::PacketWrapperDecoder& Packet);
+        void OnServerUserJoined(net::PacketWrapperDecoder& Packet);
+
+        // Outgoing packets
+        void Net_SendServerInfoRequest();
+        void Net_SendServerJoin(const std::string& Content, const net::Key& Key);
         void Net_SendMessage(const std::string& Content);
+        void Net_SendServerChangeNick(const std::string& Nick);
 
     private:
-        void AddUser(const User& user) {
-            Users.push_back(std::shared_ptr<User>(new User{user}));
-        }
+        User* AddUser(const User& user);
+        User* AddUserIfNotExist(const User& user);
+        User* GetUserByUID(const uint64_t& _UserUID);
+        
+        void ChangeUserNick(const uint64_t& _UserUID, const std::string& _Nick);
 
-        void AddMessage(const Message& msg) {
-            Messages.push_back(msg);
-        }
-
-        void AddSystemMessage(const std::string& msg) 
-        {
-            Messages.push_back(Message{0, "SYSTEM", msg});
-        }
+        void AddMessage(const Message::ShPtr& _Msg);
+        void AddUserMessage(const User& _ChatUser, const std::string& _Content);
+        void AddMyMessage(const std::string& _Content);
+        void AddSystemMessage(const std::string& Content);
+        inline void AddSystemDebugMessage(const std::string& Content);
 
     private:
+        std::map<uint32_t, std::function<void(net::PacketWrapperDecoder&)>> PacketTypeCallbacks;
+        
         std::vector<std::shared_ptr<User>> Users;
-        std::vector<Message> Messages;
+        std::vector<std::shared_ptr<Message>> Messages;
 
         std::shared_ptr<stc::ChatLogUI> ChatLog;
         std::shared_ptr<stc::UsersListUI> UserList;
@@ -136,9 +144,8 @@ namespace stc
         */
         ENetHost* ClientHost;
         ENetPeer* PeerConnection;
-
-        uint64_t SesionToken = 0;
-        uint64_t UserUID = 0;
+        
+        User* LocalUser = nullptr;
     };
 }
 
